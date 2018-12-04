@@ -286,16 +286,21 @@ data_test.head(10)
 
 #dummies 独热编码
 print(data_data.shape[0])
-data_data = pd.get_dummies(data_data,columns=['StoreType','Assortment','StateHoliday'])
-print(data_data.shape[0])
-data_data.head(5)
-print("*************")
-print(data_test.shape[0])
-data_test = pd.get_dummies(data_test,columns=['StoreType','Assortment','StateHoliday'])
-data_test['StateHoliday_2'] = 0
-data_test['StateHoliday_3'] = 0
-print(data_test.shape[0])
-data_test.head(5)
+if 'StoreType_1'  not in data_data.columns:
+    data_data = pd.get_dummies(data_data,columns=['StoreType','StateHoliday'])
+    print(data_data.shape)
+    print(data_data.columns.values)
+    print(data_data.head(5))
+    print("*************")
+    print(data_test.shape[0])
+    data_test = pd.get_dummies(data_test,columns=['StoreType','StateHoliday'])
+    data_test['StateHoliday_2'] = 0
+    data_test['StateHoliday_3'] = 0
+    data_data.sort_index(axis=1,inplace=True)
+    data_test.sort_index(axis=1,inplace=True)
+    print(data_test.shape)
+    print(data_test.columns.values)
+    print(data_test.head(5))
 
 
 # In[21]:
@@ -324,9 +329,27 @@ def rmspe_xgboost(preds, dtrain):       # written by myself
 # In[23]:
 
 
+from math import sqrt
+def rmspe(y,y_pre):
+    print("y-y_pre/y",(y-y_pre)/y)
+    print("(y-y_pre/y)**2",((y-y_pre)/y)**2)
+    a = np.mean(((y-y_pre)/y)**2)
+    return sqrt(a)
+    #print('y:',y)
+    #print('y_pre:',y_pre)
+    #print("y/y_pre:",(y_pre / y - 1)**2)
+    #print("mean:",np.mean((y_pre / y - 1)**2))
+    #return np.sqrt(np.mean((y_pre / y - 1) ** 2))
+
+
+# In[24]:
+
+
+'''
 # 训练集和测试集随机划分
 #train_data = data_data.drop(['Sales'],axis=1)
-data_data.drop(['Customers'],axis=1,inplace=True)
+if 'Customers' in data_data.columns:
+    data_data.drop(['Customers'],axis=1,inplace=True)
 X_train, X_valid = train_test_split(data_data, test_size=0.2, random_state=10)
 #print("+++++++++++++++++++++++++++++++++++")
 #print(X_train)
@@ -352,9 +375,62 @@ print(X_train.shape[0])
 print(type(y_train))
 print("y_train:",y_train.shape[0])
 #print(X_train.Sales.unique())
-num_boost_round = 20
+num_boost_round = 50
 watch_list= [(dtrain, 'train'), (dvalid, 'valid')]
-params = {"objective": "reg:linear","booster": "gbtree", "eta": 0.3,"max_depth": 10}
+params = {"objective": "reg:linear","booster": "gbtree", "eta": 0.5,"max_depth": 10,"min_child_weight":5}
+print("start train data by xgboost")
+xgboost_model = xgb.train(params, dtrain, num_boost_round,evals=watch_list)
+print("valid....")
+y_pre = xgboost_model.predict(dvalid)
+
+
+print(y_pre)
+print(len(y_pre))
+print(len(y_valid))
+print(type(y_valid))
+'''
+
+
+# In[130]:
+
+
+# 训练集和测试集手动划分
+if 'Customers' in data_data.columns:
+    data_data.drop(['Customers'],axis=1,inplace=True)
+X_train = data_data[0:813766]
+X_valid = data_data[813766::]
+#print(X_train)
+#print("*********************")
+#print(X_valid)
+#X_train, X_valid = train_test_split(data_data, test_size=0.2, random_state=10)
+#print("+++++++++++++++++++++++++++++++++++")
+#print(X_train)
+#print(X_valid)
+
+y_train = np.log1p(X_train.Sales)
+y_valid = np.log1p(X_valid.Sales)
+#y_train = X_train.Sales
+#y_valid = X_valid.Sales
+
+print(type(X_train.Sales))
+print("x_TRAIN:",X_train.Sales.shape[0])
+#X_train.drop(['Sales'],axis=1,inplace=True)
+print("####################")
+#print(type(X_train))
+#print(type(y_train))
+X_train.drop(['Sales'],axis=1,inplace=True)
+X_valid.drop(['Sales'],axis=1,inplace=True)
+
+dtrain = xgb.DMatrix(X_train,label=y_train)
+dvalid = xgb.DMatrix(X_valid,label=y_valid)
+print(X_train.shape[0])
+
+print(type(y_train))
+print("y_train:",y_train.shape[0])
+#print(X_train.Sales.unique())
+num_boost_round = 70
+watch_list= [(dtrain, 'train'), (dvalid, 'valid')]
+params = {"objective": "reg:linear","booster": "gbtree", "eta": 0.3,"max_depth": 10,"min_child_weight":3} #"min_child_weight":5
 print("start train data by xgboost")
 xgboost_model = xgb.train(params, dtrain, num_boost_round,evals=watch_list)
 print("valid....")
@@ -367,23 +443,7 @@ print(len(y_valid))
 print(type(y_valid))
 
 
-# In[24]:
-
-
-from math import sqrt
-def rmspe(y,y_pre):
-    print("y-y_pre/y",(y-y_pre)/y)
-    print("(y-y_pre/y)**2",((y-y_pre)/y)**2)
-    a = np.mean(((y-y_pre)/y)**2)
-    return sqrt(a)
-    #print('y:',y)
-    #print('y_pre:',y_pre)
-    #print("y/y_pre:",(y_pre / y - 1)**2)
-    #print("mean:",np.mean((y_pre / y - 1)**2))
-    #return np.sqrt(np.mean((y_pre / y - 1) ** 2))
-
-
-# In[25]:
+# In[131]:
 
 
 #error = rmspe(np.expm1(y_valid.values), np.expm1(y_pre))
@@ -397,7 +457,7 @@ print(error)
 print('RMSPE: {:.6f}'.format(error))
 
 
-# In[26]:
+# In[132]:
 
 
 import operator
@@ -415,19 +475,33 @@ plt.xlabel('relative importance')
 plt.show()
 
 
-# In[27]:
+# In[133]:
 
 
 #测试数据集预测
 #dtest_ids = data_test['Id']
 #data_test.drop(['Id'],axis=1,inplace=True)
 dtest = xgb.DMatrix(data_test)
+print(data_test.shape)
+#data_test_s0 = data_test['SchoolHoliday_0']
+#data_test_s1 = data_test['SchoolHoliday_1']
+#data_test.drop('SchoolHoliday_0',axis=1,inplace=True)
+#data_test.drop('SchoolHoliday_1',axis=1,inplace=True)
+#data_test.insert(18,'SchoolHoliday_0',data_test_s0)
+#data_test.insert(19,'SchoolHoliday_1',data_test_s1)
+
+print(data_test.columns.values)
+print("%%%%%%%%%%%%%%%%%%%")
+print(X_train.shape)
+print(X_train.columns.values)
 y_test = xgboost_model.predict(dtest)
+
+
 y_test = np.expm1(y_test)
 print(y_test)
 
 
-# In[28]:
+# In[134]:
 
 
 result={'Id':data_test_ids,'Sales':y_test}
@@ -436,7 +510,7 @@ result = pd.DataFrame(result)
 print(result)
 
 
-# In[29]:
+# In[135]:
 
 
 print(result.loc[(result['Id']==544)])
@@ -452,7 +526,7 @@ print(data_test_noPenIds.shape)
 print(result_noOpen)
 
 
-# In[40]:
+# In[136]:
 
 
 result_total = result.append(result_noOpen)
@@ -465,7 +539,7 @@ result_total.to_csv ("data/result.csv" , encoding = "utf-8",index=False)
 print(result_total.index)
 
 
-# In[41]:
+# In[137]:
 
 
 print(result.loc[(result['Id']==41088)])
