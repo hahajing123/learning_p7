@@ -1,7 +1,8 @@
 
 # coding: utf-8
 
-# In[2]:
+# In[1]:
+
 
 
 import pandas as pd
@@ -10,9 +11,10 @@ import xgboost as xgb
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 import numpy  as np
+#import lightgbm as lgb
 
 
-# In[3]:
+# In[2]:
 
 
 orial_data = pd.read_csv('data/train.csv',parse_dates=[2])
@@ -20,7 +22,7 @@ orial_data.head()
 orial_data.shape[0]
 
 
-# In[4]:
+# In[3]:
 
 
 #数据拷贝一份进行处理，避免 对原始数据的改变
@@ -29,7 +31,7 @@ data_data = orial_data.copy()
 data_data.shape[0]
 
 
-# In[5]:
+# In[4]:
 
 
 # 加载store 数据
@@ -44,7 +46,7 @@ data_store.head(20)
 data_store.shape[0]
 
 
-# In[6]:
+# In[5]:
 
 
 #加载test 数据
@@ -54,7 +56,7 @@ data_test.fillna(value={'Open':1},inplace=True)
 data_test.head(10)
 
 
-# In[7]:
+# In[6]:
 
 
 #将字符的属性转换成数字
@@ -76,7 +78,7 @@ data_test['StateHoliday'] = data_test['StateHoliday'].apply(pd.to_numeric)
 print(data_test['StateHoliday'].unique())
 
 
-# In[8]:
+# In[7]:
 
 
 # 进行归一化 对CompetitionDistance
@@ -87,20 +89,20 @@ data_store['CompetitionDistance'] = scaler.fit_transform(x)
 data_store.head(5)
 
 
-# In[9]:
+# In[8]:
 
 
 #pd.get_dummies(data_store)
 data_test.head(1)
 
 
-# In[10]:
+# In[9]:
 
 
 data_data.head(3)
 
 
-# In[11]:
+# In[10]:
 
 
 # 提取出月份、年份,数据增加年份和月份的列
@@ -136,7 +138,7 @@ data_test.head(5)
 #data_data.shape[0]
 
 
-# In[12]:
+# In[11]:
 
 
 data_data.shape[0]
@@ -147,7 +149,7 @@ data_data  = data_data.loc[(data_data['Sales'] > 0)]
 print(data_data.shape[0])
 
 
-# In[13]:
+# In[12]:
 
 
 #选取某一个店的ID,获取其销售记录 并显示其每个月的销售情况
@@ -176,7 +178,7 @@ a=get_month_sales_by_id(5)
 print("2014 1",a['2014'][1])
 
 
-# In[14]:
+# In[13]:
 
 
 month_info = get_month_sales_by_id(5)
@@ -186,7 +188,7 @@ for i in month_info:
     print(month_info[i])
 
 
-# In[15]:
+# In[14]:
 
 
 
@@ -230,7 +232,7 @@ plt.legend(bars, years,loc = 'best')
 plt.show()
 
 
-# In[16]:
+# In[15]:
 
 
 #归一化处理
@@ -240,7 +242,7 @@ data_data['Customers'] = scaler.fit_transform(x)
 data_data.head(5)
 
 
-# In[17]:
+# In[16]:
 
 
 data_data = data_data.merge(data_store,left_on = 'Store',right_on = 'Store',how="left")
@@ -249,7 +251,7 @@ data_data.head(10)
 #
 
 
-# In[18]:
+# In[17]:
 
 
 #test 数据获取open=1 的数据
@@ -267,7 +269,7 @@ print(data_test_noOpen)
 #print(data)
 
 
-# In[19]:
+# In[18]:
 
 
 data_test = data_test.merge(data_store,left_on = 'Store',right_on = 'Store',how="left")
@@ -275,13 +277,13 @@ print(data_test.shape[0])
 data_test.head(10)
 
 
-# In[20]:
+# In[19]:
 
 
 #test 
 
 
-# In[21]:
+# In[20]:
 
 
 #dummies 独热编码
@@ -303,7 +305,7 @@ if 'StoreType_1'  not in data_data.columns:
     print(data_test.head(5))
 
 
-# In[22]:
+# In[21]:
 
 
 
@@ -315,7 +317,7 @@ data_data.shape[0]
  
 
 
-# In[23]:
+# In[22]:
 
 
 import math
@@ -327,7 +329,7 @@ def rmspe_xgboost(preds, dtrain):       # written by myself
     return 'rmspe_xgboost',math.sqrt(err)
 
 
-# In[24]:
+# In[23]:
 
 
 from math import sqrt
@@ -343,7 +345,7 @@ def rmspe(y,y_pre):
     #return np.sqrt(np.mean((y_pre / y - 1) ** 2))
 
 
-# In[25]:
+# In[24]:
 
 
 '''
@@ -392,7 +394,7 @@ print(type(y_valid))
 '''
 
 
-# In[41]:
+# In[25]:
 
 
 # 训练集和测试集手动划分
@@ -432,12 +434,133 @@ print("y_train:",y_train.shape[0])
 print("***********************************")
 print(X_valid.shape[0])
 #print(X_train.Sales.unique())
-num_boost_round = 200
+
+
+# In[26]:
+
+
+#************** 训练得分的读写 ***********************
+import json
+def write_record(data,file):
+    jsObj = json.dumps(data)
+    fileObject = open(file, 'w')
+    fileObject.write(jsObj)
+    fileObject.close()
+
+# 读log 记录
+def read_record(file):
+    fileObject = open(file, 'r')
+    file_txt = fileObject.read()
+    json_content = json.loads(file_txt)
+    return json_content
+
+
+# In[ ]:
+
+
+#********************开始训练***************************
+num_boost_round = 25000
+min_child_weight = 5
+max_depth=10
+eta = 0.01
 watch_list= [(dtrain, 'train'), (dvalid, 'valid')]
-params = {"objective": "reg:linear","booster": "gbtree", "eta": 0.3,"max_depth": 10,"min_child_weight":3} #"min_child_weight":5
+evals_result = dict()
+params = {"objective": "reg:linear","booster": "gbtree", "eta": eta,"max_depth":max_depth,"min_child_weight":min_child_weight} #"min_child_weight":5
 print("start train data by xgboost")
-xgboost_model = xgb.train(params, dtrain, num_boost_round,feval=rmspe_xgboost,evals=watch_list,verbose_eval=10)
+xgboost_model = xgb.train(params, dtrain, num_boost_round,feval=rmspe_xgboost,evals=watch_list,verbose_eval=10,early_stopping_rounds=500,evals_result=evals_result)
 print("valid....")
+#保存模型
+model_name = "model/num"+str(num_boost_round)+"_weight"+str(min_child_weight)+"_maxdepth"+str(max_depth)+"_eta"+str(eta)+".model"
+log_name= "record/num"+str(num_boost_round)+"_weight"+str(min_child_weight)+"_maxdepth"+str(max_depth)+"_eta"+str(eta)+".txt"
+xgboost_model.save_model(model_name)
+print("save...",model_name)
+write_record(evals_result,log_name)
+print(".....save log ..........",log_name)
+
+
+# In[ ]:
+
+
+#查看loss 记录
+train_log = evals_result['train']
+valid_log = evals_result['valid']
+show_num = 1200
+if(show_num >0):
+    log_index = np.arange(show_num)#len(train_log['rmspe_xgboost'])
+
+    plt.plot(log_index,train_log['rmspe_xgboost'][0:show_num],linewidth = 1,label = 'train_rmspe')
+    plt.legend()
+    plt.plot(log_index,valid_log['rmspe_xgboost'][0:show_num],linewidth = 1,label = 'valid_rmspe')
+    plt.legend()
+else:
+    log_index = np.arange(len(train_log['rmspe_xgboost']))
+    plt.plot(log_index,train_log['rmspe_xgboost'],linewidth = 1,label = 'train_rmspe')
+    plt.legend()
+    plt.plot(log_index,valid_log['rmspe_xgboost'],linewidth = 1,label = 'valid_rmspe')
+    plt.legend()
+    
+    
+
+
+# In[ ]:
+
+
+print("best best_ntree_limit",xgboost_model.best_ntree_limit)
+print("best_score:",xgboost_model.best_score)
+print("bst.best_iteration",xgboost_model.best_iteration)
+
+
+# In[ ]:
+
+
+#lightgbm
+'''
+if 'Customers' in data_data.columns:
+    data_data.drop(['Customers'],axis=1,inplace=True)
+X_train = data_data[0:813766]
+X_valid = data_data[813766::]
+
+y_train = np.log1p(X_train.Sales)
+y_valid = np.log1p(X_valid.Sales)
+
+X_valid_sales =X_valid['Sales'] 
+X_train.drop(['Sales'],axis=1,inplace=True)
+X_valid.drop(['Sales'],axis=1,inplace=True)
+
+lgb_train = lgb.Dataset(X_train,y_train)
+lgb_eval = lgb.Dataset(X_valid,y_valid,reference=lgb_train)
+
+num_boost_round = 100
+params = {
+    'task':'train',
+    'boosting_type':'gbdt',
+    'objective':'regression',
+    'metric':{'l2','mae'},
+    'num_leaves':31,
+    'learning_rate':0.2,
+    'feature_fraction':0.9,
+    'bagging_fraction':0.8,
+    'bagging_freq':5,
+    'verbose':0,
+    'max_depth':10
+}
+
+gbm = lgb.train(params,lgb_train,num_boost_round=num_boost_round,valid_sets=lgb_eval,early_stopping_rounds=5)
+ 
+y_pre = gbm.predict(X_valid,num_iteration=gbm.best_iteration)
+#print(mean_squared_error(y_valid,lgb_predit) ** 0.5)
+print("............... valid ...................")
+print(y_pre)
+'''
+
+
+# In[ ]:
+
+
+#预测数据
+#model_name="model/num20000_weight3_maxdepth6_eta0.01.model"
+print(model_name)
+xgboost_model = xgb.Booster(model_file=model_name)
 y_pre = xgboost_model.predict(dvalid)
 
 
@@ -447,40 +570,81 @@ print(len(y_valid))
 print('X_valid_sales',len(X_valid_sales))
 print(type(y_valid))
 
-
-# In[27]:
-
-
+#load_model = booster.load_model('model/num20_w3_eta001.model')
 #error = rmspe(np.expm1(y_valid.values), np.expm1(y_pre))
 error = rmspe(np.expm1(y_valid.values),np.expm1(y_pre))
 #print(type(np.expm1(y_pre)))
 #print(type(y_valid.values))
-#print(np.expm1(y_pre))
+print("*********************")
+print((y_pre))
 #print("pre:",y_pre)
-#print("valid_value:",y_valid.values)
-print(error)
+print("valid_value:",y_valid.values)
+#print(error)
 print('RMSPE: {:.6f}'.format(error))
 
 
-# In[28]:
+# In[ ]:
 
 
-learn_model = xgb.cv(params, dtrain, num_boost_round,feval=rmspe_xgboost,verbose_eval=10)
+''' 
+
+#lightgbm 整合预测数据
+print("********************* test ***************************")
+y_test =  gbm.predict(data_test,num_iteration=gbm.best_iteration)
+y_test = np.expm1(y_test)
+print(y_test)
+noOpen_nums = data_test_noPenIds.shape[0]
+test_noOpen_data = np.zeros(noOpen_nums)
+
+result_noOpen={'Id':data_test_noPenIds,'Sales':test_noOpen_data}
+result_noOpen = pd.DataFrame(result_noOpen)
+print(result_noOpen['Sales'])
+print("&&&&&&&&&&&&&&&&&&&&&&&")
+print(data_test_noPenIds.shape)
+print(result_noOpen)
+
+result={'Id':data_test_ids,'Sales':y_test}
+print(type(result))
+result = pd.DataFrame(result)
+print(result)
+
+#数据整合
+result_total = result.append(result_noOpen)
+print(result_total.shape)
+print(result_total)
+print("%%%%%%%%%%%%%%%%%%")
+result_total.sort_values(by = 'Id',axis = 0,ascending = True,inplace=True)
+
+result_total.to_csv ("data/result_light.csv" , encoding = "utf-8",index=False)
+print(result_total.index)
+'''
 
 
-# In[29]:
+# In[ ]:
 
 
+'''
+learn_model = xgb.cv(params, dtrain, 1500,feval=rmspe_xgboost,verbose_eval=10)
+print("sss")
+'''
+
+
+# In[ ]:
+
+
+'''
 #print(learn_model)
 learn_model.loc[30:,["test-rmspe_xgboost-mean", "train-rmspe_xgboost-mean"]].plot()
 print('y_pre',len(y_pre))
 print(len(y_valid))
 print('X_valid_sales',len(X_valid_sales))
+'''
 
 
-# In[30]:
+# In[ ]:
 
 
+#特征重要性
 import operator
 importance = xgboost_model.get_fscore()
 importance = sorted(importance.items(), key=operator.itemgetter(1))
@@ -496,7 +660,7 @@ plt.xlabel('relative importance')
 plt.show()
 
 
-# In[31]:
+# In[ ]:
 
 
 #测试数据集预测
@@ -526,7 +690,7 @@ print(len(y_valid))
 print('X_valid_sales',X_valid_sales.shape)
 
 
-# In[32]:
+# In[ ]:
 
 
 print('y_pre',y_pre.shape)
@@ -534,7 +698,7 @@ print(len(y_valid))
 print('X_valid_sales',X_valid_sales.shape)
 
 
-# In[33]:
+# In[ ]:
 
 
 result={'Id':data_test_ids,'Sales':y_test}
@@ -543,7 +707,7 @@ result = pd.DataFrame(result)
 print(result)
 
 
-# In[34]:
+# In[ ]:
 
 
 #处理open=0 的数据
@@ -560,7 +724,7 @@ print(data_test_noPenIds.shape)
 print(result_noOpen)
 
 
-# In[35]:
+# In[ ]:
 
 
 result_total = result.append(result_noOpen)
@@ -573,13 +737,13 @@ result_total.to_csv ("data/result.csv" , encoding = "utf-8",index=False)
 print(result_total.index)
 
 
-# In[36]:
+# In[ ]:
 
 
-print(result.loc[(result['Id']==41088)])
+#print(result.loc[(result['Id']==41088)])
 
 
-# In[42]:
+# In[ ]:
 
 
 #从验证集合
@@ -590,8 +754,8 @@ data_size = 200
 print("random_i",random_i)
 print(X_valid_sales.shape)
 print(y_pre.shape)
-#print(y_pre[random_i*data_size:(random_i+1)*data_size])
-print(y_valid[random_i*data_size:(random_i+1)*data_size])
+print(np.expm1(y_pre[random_i*data_size:(random_i+1)*data_size]))
+#print(y_valid[random_i*data_size:(random_i+1)*data_size])
 fig = plt.figure(figsize=(20,8))
 x_index = np.arange(200)
 print(x_index)
@@ -605,7 +769,7 @@ plt.ylabel('销售额')
 plt.savefig('predict_1.jpg')
 
 
-# In[38]:
+# In[ ]:
 
 
 #残差图
@@ -623,7 +787,7 @@ plt.xlabel('y_pre-y_label (40 evenly spaced bins)')
 plt.ylabel('count')
 
 
-# In[39]:
+# In[ ]:
 
 
 #散点图
