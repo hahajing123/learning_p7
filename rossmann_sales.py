@@ -1,8 +1,7 @@
-
+#!/usr/bin/env python
 # coding: utf-8
 
 # In[1]:
-
 
 
 import pandas as pd
@@ -38,15 +37,30 @@ data_data.shape[0]
 store = pd.read_csv('data/store.csv')
 data_store = store.copy()
 #异常值处理
-fill_values = {'CompetitionOpenSinceYear': 0, 'CompetitionDistance': 1, 'CompetitionOpenSinceMonth': 0, 'CompetitionOpenSinceYear': 0,'Promo2SinceWeek':0,'Promo2SinceYear':0,'PromoInterval':'None' }
+#'CompetitionOpenSinceYear': 0,
+fill_values = { 'CompetitionOpenSinceYear': 0,'CompetitionDistance': 1, 'CompetitionOpenSinceMonth': 0, 'Promo2SinceWeek':0,'Promo2SinceYear':0,'PromoInterval':'None' }
 data_store.fillna(value=fill_values,inplace = True)
-store_drop_columns = ['CompetitionOpenSinceMonth','CompetitionOpenSinceYear','Promo2SinceWeek','Promo2SinceYear','PromoInterval']
+store_drop_columns = ['PromoInterval']
 data_store.drop(store_drop_columns,axis=1,inplace=True)
 data_store.head(20)
-data_store.shape[0]
 
 
 # In[5]:
+
+
+##'CompetitionOpenSinceYear': 0  换成 Promo2SinceYear
+
+#data_store['CompetitionOpenSinceYear'].fillna(data_store['Promo2SinceYear'],inplace = True)
+#data_store.head(20)
+
+
+# In[6]:
+
+
+#构建competitionOpen 最近竞争对手开业多少个月
+
+
+# In[7]:
 
 
 #加载test 数据
@@ -56,7 +70,19 @@ data_test.fillna(value={'Open':1},inplace=True)
 data_test.head(10)
 
 
-# In[6]:
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[8]:
 
 
 #将字符的属性转换成数字
@@ -78,31 +104,32 @@ data_test['StateHoliday'] = data_test['StateHoliday'].apply(pd.to_numeric)
 print(data_test['StateHoliday'].unique())
 
 
-# In[7]:
+# In[9]:
 
 
-# 进行归一化 对CompetitionDistance
-
+# 进行归一化 对CompetitionDistance，
+'''
 scaler = MinMaxScaler()
 x = data_store['CompetitionDistance'].values.reshape(-1,1)
 data_store['CompetitionDistance'] = scaler.fit_transform(x)
 data_store.head(5)
+'''
 
 
-# In[8]:
+# In[10]:
 
 
 #pd.get_dummies(data_store)
 data_test.head(1)
 
 
-# In[9]:
+# In[11]:
 
 
 data_data.head(3)
 
 
-# In[10]:
+# In[12]:
 
 
 # 提取出月份、年份,数据增加年份和月份的列
@@ -114,6 +141,7 @@ def conver_date(data):
     data['year'] = data_date.dt.year
     data['month'] = data_date.dt.month
     data['day'] = data_date.dt.day
+    data['WweekOfYear']= data_date.dt.weekofyear
     data.drop('Date',axis=1,inplace=True)
     return data
 data_data = conver_date(data_data)
@@ -138,7 +166,7 @@ data_test.head(5)
 #data_data.shape[0]
 
 
-# In[11]:
+# In[13]:
 
 
 data_data.shape[0]
@@ -149,7 +177,7 @@ data_data  = data_data.loc[(data_data['Sales'] > 0)]
 print(data_data.shape[0])
 
 
-# In[12]:
+# In[14]:
 
 
 #选取某一个店的ID,获取其销售记录 并显示其每个月的销售情况
@@ -178,7 +206,7 @@ a=get_month_sales_by_id(5)
 print("2014 1",a['2014'][1])
 
 
-# In[13]:
+# In[15]:
 
 
 month_info = get_month_sales_by_id(5)
@@ -188,7 +216,7 @@ for i in month_info:
     print(month_info[i])
 
 
-# In[14]:
+# In[16]:
 
 
 
@@ -232,17 +260,13 @@ plt.legend(bars, years,loc = 'best')
 plt.show()
 
 
-# In[15]:
+# In[ ]:
 
 
-#归一化处理
-scaler = MinMaxScaler()
-x = data_data['Customers'].values.reshape(-1,1)
-data_data['Customers'] = scaler.fit_transform(x)
-data_data.head(5)
 
 
-# In[16]:
+
+# In[17]:
 
 
 data_data = data_data.merge(data_store,left_on = 'Store',right_on = 'Store',how="left")
@@ -251,7 +275,23 @@ data_data.head(10)
 #
 
 
-# In[17]:
+# In[18]:
+
+
+#构建competitionOpen 最近竞争对手开业多少个月
+data_data['CompetitionOpen'] = 12 *(data_data['year']-data_data['CompetitionOpenSinceYear'])+(data_data['month']-data_data['CompetitionOpenSinceMonth'])
+data_data.head(5)
+
+
+# In[19]:
+
+
+#构建特征PromoOpen 开始促销多少个月
+data_data['PromoOpen'] = 12*(data_data['year']-data_data['Promo2SinceYear'])+(data_data['WweekOfYear']-data_data['Promo2SinceWeek'])/4.0
+data_data.head(5)
+
+
+# In[20]:
 
 
 #test 数据获取open=1 的数据
@@ -269,7 +309,7 @@ print(data_test_noOpen)
 #print(data)
 
 
-# In[18]:
+# In[21]:
 
 
 data_test = data_test.merge(data_store,left_on = 'Store',right_on = 'Store',how="left")
@@ -277,13 +317,39 @@ print(data_test.shape[0])
 data_test.head(10)
 
 
-# In[19]:
+# In[22]:
+
+
+#构建特征PromoOpen 开始促销多少个月
+data_test['PromoOpen'] = 12*(data_data['year']-data_test['Promo2SinceYear'])+(data_test['WweekOfYear']-data_test['Promo2SinceWeek'])/4.0
+
+data_test['CompetitionOpen'] = 12 *(data_test['year']-data_test['CompetitionOpenSinceYear'])+(data_test['month']-data_test['CompetitionOpenSinceMonth'])
+data_test.head(5)
+
+
+# In[23]:
 
 
 #test 
+'''
+#归一化处理
+scaler = MinMaxScaler()
+x = data_data['PromoOpen'].values.reshape(-1,1)
+data_data['PromoOpen'] = scaler.fit_transform(x)
+
+x = data_data['CompetitionOpen'].values.reshape(-1,1)
+data_data['CompetitionOpen'] = scaler.fit_transform(x)
+
+#归一化 测试集
+x = data_test['PromoOpen'].values.reshape(-1,1)
+data_test['PromoOpen'] = scaler.fit_transform(x)
+
+x = data_test['CompetitionOpen'].values.reshape(-1,1)
+data_test['CompetitionOpen'] = scaler.fit_transform(x)
+'''
 
 
-# In[20]:
+# In[24]:
 
 
 #dummies 独热编码
@@ -305,7 +371,14 @@ if 'StoreType_1'  not in data_data.columns:
     print(data_test.head(5))
 
 
-# In[21]:
+# In[25]:
+
+
+data_data.sort_index(axis=1,inplace=True)
+data_test.sort_index(axis=1,inplace=True)
+
+
+# In[26]:
 
 
 
@@ -317,35 +390,44 @@ data_data.shape[0]
  
 
 
-# In[22]:
-
-
-import math
-def rmspe_xgboost(preds, dtrain):       # written by myself
-    labels = dtrain.get_label()
-    # return a pair metric_name, result
-    # since preds are margin(before logistic transformation, cutoff at 0)
-    err = np.mean(((labels-preds)/labels)**2)
-    return 'rmspe_xgboost',math.sqrt(err)
-
-
-# In[23]:
+# In[27]:
 
 
 from math import sqrt
 def rmspe(y,y_pre):
-    print("y-y_pre/y",(y-y_pre)/y)
-    print("(y-y_pre/y)**2",((y-y_pre)/y)**2)
+    #print("y-y_pre/y",(y-y_pre)/y)
+    #print("(y-y_pre/y)**2",((y-y_pre)/y)**2)
     a = np.mean(((y-y_pre)/y)**2)
     return sqrt(a)
     #print('y:',y)
     #print('y_pre:',y_pre)
     #print("y/y_pre:",(y_pre / y - 1)**2)
     #print("mean:",np.mean((y_pre / y - 1)**2))
-    #return np.sqrt(np.mean((y_pre / y - 1) ** 2))
 
 
-# In[24]:
+# In[28]:
+
+
+import math
+def rmspe_xgboost(preds, dtrain):       # written by myself
+    labels = np.expm1(dtrain.get_label())
+    preds = np.expm1(preds)
+    #print("***labels:*****",labels)
+    #print("***preds:*****",preds)
+    
+    # return a pair metric_name, result
+    # since preds are margin(before logistic transformation, cutoff at 0)
+    #err = np.mean(((labels-preds)/labels)**2)
+    return 'rmspe_xgboost',rmspe(labels,preds)
+
+
+# In[ ]:
+
+
+
+
+
+# In[29]:
 
 
 '''
@@ -394,7 +476,7 @@ print(type(y_valid))
 '''
 
 
-# In[25]:
+# In[30]:
 
 
 # 训练集和测试集手动划分
@@ -436,7 +518,7 @@ print(X_valid.shape[0])
 #print(X_train.Sales.unique())
 
 
-# In[26]:
+# In[31]:
 
 
 #************** 训练得分的读写 ***********************
@@ -455,14 +537,14 @@ def read_record(file):
     return json_content
 
 
-# In[ ]:
+# In[66]:
 
 
 #********************开始训练***************************
-num_boost_round = 25000
-min_child_weight = 5
-max_depth=10
-eta = 0.01
+num_boost_round = 30000
+min_child_weight = 6
+max_depth=9
+eta = 0.008
 watch_list= [(dtrain, 'train'), (dvalid, 'valid')]
 evals_result = dict()
 params = {"objective": "reg:linear","booster": "gbtree", "eta": eta,"max_depth":max_depth,"min_child_weight":min_child_weight} #"min_child_weight":5
@@ -478,7 +560,7 @@ write_record(evals_result,log_name)
 print(".....save log ..........",log_name)
 
 
-# In[ ]:
+# In[67]:
 
 
 #查看loss 记录
@@ -502,7 +584,7 @@ else:
     
 
 
-# In[ ]:
+# In[68]:
 
 
 print("best best_ntree_limit",xgboost_model.best_ntree_limit)
@@ -510,7 +592,7 @@ print("best_score:",xgboost_model.best_score)
 print("bst.best_iteration",xgboost_model.best_iteration)
 
 
-# In[ ]:
+# In[69]:
 
 
 #lightgbm
@@ -554,7 +636,7 @@ print(y_pre)
 '''
 
 
-# In[ ]:
+# In[70]:
 
 
 #预测数据
@@ -584,6 +666,12 @@ print('RMSPE: {:.6f}'.format(error))
 
 
 # In[ ]:
+
+
+
+
+
+# In[71]:
 
 
 ''' 
@@ -620,7 +708,7 @@ print(result_total.index)
 '''
 
 
-# In[ ]:
+# In[72]:
 
 
 '''
@@ -629,7 +717,7 @@ print("sss")
 '''
 
 
-# In[ ]:
+# In[73]:
 
 
 '''
@@ -641,7 +729,7 @@ print('X_valid_sales',len(X_valid_sales))
 '''
 
 
-# In[ ]:
+# In[74]:
 
 
 #特征重要性
@@ -660,7 +748,7 @@ plt.xlabel('relative importance')
 plt.show()
 
 
-# In[ ]:
+# In[75]:
 
 
 #测试数据集预测
@@ -690,7 +778,7 @@ print(len(y_valid))
 print('X_valid_sales',X_valid_sales.shape)
 
 
-# In[ ]:
+# In[76]:
 
 
 print('y_pre',y_pre.shape)
@@ -698,7 +786,7 @@ print(len(y_valid))
 print('X_valid_sales',X_valid_sales.shape)
 
 
-# In[ ]:
+# In[77]:
 
 
 result={'Id':data_test_ids,'Sales':y_test}
@@ -707,7 +795,7 @@ result = pd.DataFrame(result)
 print(result)
 
 
-# In[ ]:
+# In[78]:
 
 
 #处理open=0 的数据
@@ -724,7 +812,7 @@ print(data_test_noPenIds.shape)
 print(result_noOpen)
 
 
-# In[ ]:
+# In[79]:
 
 
 result_total = result.append(result_noOpen)
@@ -737,13 +825,13 @@ result_total.to_csv ("data/result.csv" , encoding = "utf-8",index=False)
 print(result_total.index)
 
 
-# In[ ]:
+# In[80]:
 
 
 #print(result.loc[(result['Id']==41088)])
 
 
-# In[ ]:
+# In[81]:
 
 
 #从验证集合
@@ -769,7 +857,7 @@ plt.ylabel('销售额')
 plt.savefig('predict_1.jpg')
 
 
-# In[ ]:
+# In[82]:
 
 
 #残差图
@@ -787,7 +875,7 @@ plt.xlabel('y_pre-y_label (40 evenly spaced bins)')
 plt.ylabel('count')
 
 
-# In[ ]:
+# In[83]:
 
 
 #散点图
@@ -796,4 +884,22 @@ plt.scatter(X_valid_sales.index,valid_sub,alpha=0.5,label='检验集残差')
 plt.xlabel("index")
 plt.ylabel("残差")
 plt.title("检验集的残差散点图")
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
 
