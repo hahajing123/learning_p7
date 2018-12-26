@@ -136,17 +136,20 @@ data_data.head(3)
 import time, datetime
 def conver_date(data):
     print(data.head(5))
-    data_month = pd.to_datetime(data['Date'],format='%Y-%m-%d %H:%M:%S')
+    #data_month = pd.to_datetime(data['Date'],format='%Y-%m-%d %H:%M:%S')
     data_date = pd.to_datetime(data['Date'],format='%Y/%m/%d')
     data['year'] = data_date.dt.year
     data['month'] = data_date.dt.month
     data['day'] = data_date.dt.day
     data['WweekOfYear']= data_date.dt.weekofyear
-    data.drop('Date',axis=1,inplace=True)
+    data['Date'] = data_date
+    #data.drop('Date',axis=1,inplace=True)
     return data
 data_data = conver_date(data_data)
 data_test = conver_date(data_test)
-data_test.head(5)
+print(data_test.head(5))
+print("........................................")
+print(data_data.tail(20))
     
 #print(time.strftime('%Y-%m-%d %H:%M:%S'))
 #data_month = pd.to_datetime(data_data['Date'],format='%Y-%m-%d %H:%M:%S')
@@ -260,13 +263,15 @@ plt.legend(bars, years,loc = 'best')
 plt.show()
 
 
-# In[ ]:
-
-
-
-
-
 # In[17]:
+
+
+#按照DATE排序 
+data_data.sort_values(by = 'Date',axis = 0,ascending = False)
+data_data.head(20)
+
+
+# In[18]:
 
 
 data_data = data_data.merge(data_store,left_on = 'Store',right_on = 'Store',how="left")
@@ -275,7 +280,7 @@ data_data.head(10)
 #
 
 
-# In[18]:
+# In[19]:
 
 
 #构建competitionOpen 最近竞争对手开业多少个月
@@ -283,7 +288,7 @@ data_data['CompetitionOpen'] = 12 *(data_data['year']-data_data['CompetitionOpen
 data_data.head(5)
 
 
-# In[19]:
+# In[20]:
 
 
 #构建特征PromoOpen 开始促销多少个月
@@ -291,7 +296,7 @@ data_data['PromoOpen'] = 12*(data_data['year']-data_data['Promo2SinceYear'])+(da
 data_data.head(5)
 
 
-# In[20]:
+# In[21]:
 
 
 #test 数据获取open=1 的数据
@@ -309,7 +314,7 @@ print(data_test_noOpen)
 #print(data)
 
 
-# In[21]:
+# In[22]:
 
 
 data_test = data_test.merge(data_store,left_on = 'Store',right_on = 'Store',how="left")
@@ -317,7 +322,7 @@ print(data_test.shape[0])
 data_test.head(10)
 
 
-# In[22]:
+# In[23]:
 
 
 #构建特征PromoOpen 开始促销多少个月
@@ -327,7 +332,7 @@ data_test['CompetitionOpen'] = 12 *(data_test['year']-data_test['CompetitionOpen
 data_test.head(5)
 
 
-# In[23]:
+# In[24]:
 
 
 #test 
@@ -349,7 +354,7 @@ data_test['CompetitionOpen'] = scaler.fit_transform(x)
 '''
 
 
-# In[24]:
+# In[25]:
 
 
 #dummies 独热编码
@@ -371,14 +376,15 @@ if 'StoreType_1'  not in data_data.columns:
     print(data_test.head(5))
 
 
-# In[25]:
+# In[26]:
 
 
 data_data.sort_index(axis=1,inplace=True)
 data_test.sort_index(axis=1,inplace=True)
+data_data.head(10)
 
 
-# In[26]:
+# In[27]:
 
 
 
@@ -390,7 +396,7 @@ data_data.shape[0]
  
 
 
-# In[27]:
+# In[28]:
 
 
 from math import sqrt
@@ -405,7 +411,7 @@ def rmspe(y,y_pre):
     #print("mean:",np.mean((y_pre / y - 1)**2))
 
 
-# In[28]:
+# In[29]:
 
 
 import math
@@ -427,7 +433,7 @@ def rmspe_xgboost(preds, dtrain):       # written by myself
 
 
 
-# In[29]:
+# In[30]:
 
 
 '''
@@ -476,14 +482,19 @@ print(type(y_valid))
 '''
 
 
-# In[30]:
+# In[31]:
 
 
 # 训练集和测试集手动划分
 if 'Customers' in data_data.columns:
     data_data.drop(['Customers'],axis=1,inplace=True)
-X_train = data_data[0:813766]
-X_valid = data_data[813766::]
+
+#X_train = data_data[0:813766]
+#X_valid = data_data[813766::]
+#取两周收据为valid
+split_date = '2015/7/18'
+X_train = data_data[data_data.Date < split_date]
+X_valid = data_data[data_data.Date >= split_date]
 #print(X_train)
 #print("*********************")
 #print(X_valid)
@@ -507,6 +518,9 @@ X_valid_sales =X_valid['Sales']
 X_train.drop(['Sales'],axis=1,inplace=True)
 X_valid.drop(['Sales'],axis=1,inplace=True)
 
+X_train.drop(['Date'],axis=1,inplace=True)
+X_valid.drop(['Date'],axis=1,inplace=True)
+
 dtrain = xgb.DMatrix(X_train,label=y_train)
 dvalid = xgb.DMatrix(X_valid,label=y_valid)
 print(X_train.shape[0])
@@ -518,7 +532,7 @@ print(X_valid.shape[0])
 #print(X_train.Sales.unique())
 
 
-# In[31]:
+# In[32]:
 
 
 #************** 训练得分的读写 ***********************
@@ -537,14 +551,14 @@ def read_record(file):
     return json_content
 
 
-# In[66]:
+# In[241]:
 
 
 #********************开始训练***************************
-num_boost_round = 30000
-min_child_weight = 6
-max_depth=9
-eta = 0.008
+num_boost_round = 40000
+min_child_weight = 4
+max_depth=8
+eta = 0.005
 watch_list= [(dtrain, 'train'), (dvalid, 'valid')]
 evals_result = dict()
 params = {"objective": "reg:linear","booster": "gbtree", "eta": eta,"max_depth":max_depth,"min_child_weight":min_child_weight} #"min_child_weight":5
@@ -560,10 +574,10 @@ write_record(evals_result,log_name)
 print(".....save log ..........",log_name)
 
 
-# In[67]:
+# In[242]:
 
 
-#查看loss 记录
+#查看loss 记录+
 train_log = evals_result['train']
 valid_log = evals_result['valid']
 show_num = 1200
@@ -584,7 +598,7 @@ else:
     
 
 
-# In[68]:
+# In[243]:
 
 
 print("best best_ntree_limit",xgboost_model.best_ntree_limit)
@@ -592,7 +606,7 @@ print("best_score:",xgboost_model.best_score)
 print("bst.best_iteration",xgboost_model.best_iteration)
 
 
-# In[69]:
+# In[244]:
 
 
 #lightgbm
@@ -636,7 +650,7 @@ print(y_pre)
 '''
 
 
-# In[70]:
+# In[245]:
 
 
 #预测数据
@@ -671,7 +685,7 @@ print('RMSPE: {:.6f}'.format(error))
 
 
 
-# In[71]:
+# In[246]:
 
 
 ''' 
@@ -708,7 +722,7 @@ print(result_total.index)
 '''
 
 
-# In[72]:
+# In[247]:
 
 
 '''
@@ -717,7 +731,7 @@ print("sss")
 '''
 
 
-# In[73]:
+# In[248]:
 
 
 '''
@@ -729,7 +743,7 @@ print('X_valid_sales',len(X_valid_sales))
 '''
 
 
-# In[74]:
+# In[249]:
 
 
 #特征重要性
@@ -748,12 +762,15 @@ plt.xlabel('relative importance')
 plt.show()
 
 
-# In[75]:
+# In[250]:
 
 
 #测试数据集预测
 #dtest_ids = data_test['Id']
 #data_test.drop(['Id'],axis=1,inplace=True)
+if 'Date' in data_test.columns:
+    data_test.drop(['Date'],axis=1,inplace=True)
+
 dtest = xgb.DMatrix(data_test)
 print(data_test.shape)
 #data_test_s0 = data_test['SchoolHoliday_0']
@@ -778,7 +795,7 @@ print(len(y_valid))
 print('X_valid_sales',X_valid_sales.shape)
 
 
-# In[76]:
+# In[251]:
 
 
 print('y_pre',y_pre.shape)
@@ -786,7 +803,7 @@ print(len(y_valid))
 print('X_valid_sales',X_valid_sales.shape)
 
 
-# In[77]:
+# In[252]:
 
 
 result={'Id':data_test_ids,'Sales':y_test}
@@ -795,7 +812,7 @@ result = pd.DataFrame(result)
 print(result)
 
 
-# In[78]:
+# In[253]:
 
 
 #处理open=0 的数据
@@ -812,7 +829,7 @@ print(data_test_noPenIds.shape)
 print(result_noOpen)
 
 
-# In[79]:
+# In[254]:
 
 
 result_total = result.append(result_noOpen)
@@ -825,16 +842,17 @@ result_total.to_csv ("data/result.csv" , encoding = "utf-8",index=False)
 print(result_total.index)
 
 
-# In[80]:
+# In[255]:
 
 
 #print(result.loc[(result['Id']==41088)])
 
 
-# In[81]:
+# In[256]:
 
 
 #从验证集合
+'''
 import random
 #print(type(X_valid_sales))
 random_i = random.randint(0,150)
@@ -855,9 +873,10 @@ plt.title('随机获取200条记录验证集预测情况')
 plt.xlabel('数据ID')
 plt.ylabel('销售额')
 plt.savefig('predict_1.jpg')
+'''
 
 
-# In[82]:
+# In[257]:
 
 
 #残差图
@@ -875,7 +894,7 @@ plt.xlabel('y_pre-y_label (40 evenly spaced bins)')
 plt.ylabel('count')
 
 
-# In[83]:
+# In[258]:
 
 
 #散点图
@@ -886,17 +905,15 @@ plt.ylabel("残差")
 plt.title("检验集的残差散点图")
 
 
-# In[ ]:
-
-
-
-
+# ### 
 
 # In[ ]:
 
 
 
 
+
+# ##### 
 
 # In[ ]:
 
